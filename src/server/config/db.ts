@@ -1,44 +1,39 @@
 import mongoose from 'mongoose';
 
-let cachedConnection: typeof mongoose | null = null;
+let isConnected = false;
 
-export const connectDB = async (): Promise<typeof mongoose> => {
+export const connectDB = async (): Promise<boolean> => {
   const uri = process.env.MONGODB_URI;
 
   if (!uri) {
-    throw new Error('MONGODB_URI is not defined');
+    console.log('[Database] MONGODB_URI is not set in environment. Running with local persistent document storage.');
+    return false;
   }
 
-  if (cachedConnection) {
-    return cachedConnection;
-  }
-
-  mongoose.set('strictQuery', true);
+  // Mask credentials for safe logging
+  const maskedUri = uri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
+  console.log(`[Database] Attempting connection to MongoDB Atlas: ${maskedUri}`);
 
   try {
+    mongoose.set('strictQuery', true);
     await mongoose.connect(uri, {
       serverSelectionTimeoutMS: 5000,
     });
-
-    cachedConnection = mongoose;
-
-    console.log('[Database] Connected to MongoDB Atlas');
-
-    return mongoose;
+    isConnected = true;
+    console.log('[Database] Successfully connected to MongoDB Atlas cluster.');
+    return true;
   } catch (error) {
-    console.error(
-      '[Database] MongoDB connection failed:',
-      error instanceof Error ? error.message : error
-    );
-
-    throw error;
+    console.error('[Database] MongoDB connection failed:', (error as Error).message);
+    console.log('[Database] Falling back to local persistent document storage to prevent app downtime.');
+    isConnected = false;
+    return false;
   }
 };
 
 export const getDBStatus = () => {
   return {
-    connected: mongoose.connection.readyState === 1,
-    isAtlas: mongoose.connection.readyState === 1,
+    connected: isConnected,
+    isAtlas: isConnected,
     readyState: mongoose.connection.readyState,
   };
 };
