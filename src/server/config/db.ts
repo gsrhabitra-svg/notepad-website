@@ -1,65 +1,44 @@
 import mongoose from 'mongoose';
 
-let isConnected = false;
+let cachedConnection: typeof mongoose | null = null;
 
-export const connectDB = async (): Promise<boolean> => {
+export const connectDB = async (): Promise<typeof mongoose> => {
   const uri = process.env.MONGODB_URI;
 
   if (!uri) {
-    console.error('[Database] MONGODB_URI is not set.');
-    return false;
+    throw new Error('MONGODB_URI is not defined');
   }
 
+  if (cachedConnection) {
+    return cachedConnection;
+  }
+
+  mongoose.set('strictQuery', true);
+
   try {
-    mongoose.set('strictQuery', true);
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reuse existing connection
-    |--------------------------------------------------------------------------
-    */
-
-    if (mongoose.connection.readyState === 1) {
-      isConnected = true;
-
-      console.log('[Database] MongoDB Atlas connection already exists.');
-
-      return true;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Connect to MongoDB Atlas
-    |--------------------------------------------------------------------------
-    */
-
     await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 5000,
     });
 
-    isConnected = true;
+    cachedConnection = mongoose;
 
-    console.log(
-      '[Database] Successfully connected to MongoDB Atlas cluster.'
-    );
+    console.log('[Database] Connected to MongoDB Atlas');
 
-    return true;
+    return mongoose;
   } catch (error) {
-    isConnected = false;
-
     console.error(
-      '[Database] MongoDB Atlas connection failed:',
+      '[Database] MongoDB connection failed:',
       error instanceof Error ? error.message : error
     );
 
-    return false;
+    throw error;
   }
 };
 
 export const getDBStatus = () => {
   return {
-    connected: isConnected,
-    isAtlas: isConnected,
+    connected: mongoose.connection.readyState === 1,
+    isAtlas: mongoose.connection.readyState === 1,
     readyState: mongoose.connection.readyState,
   };
 };
