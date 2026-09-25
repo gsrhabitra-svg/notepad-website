@@ -1,0 +1,8 @@
+{
+  "name": "Remix Folio — Structured Digital Notebook",
+  "description": "A distraction-free, laptop-first structured digital notebook with unlimited hierarchical organization, rich text editing, and personal workspace.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
