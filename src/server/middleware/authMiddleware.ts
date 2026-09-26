@@ -2,7 +2,15 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { StorageProvider } from '../storage/storageProvider.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'folio_jwt_secret_2026_unauthorized_fallback';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+const getJWTSecret = (): string => {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+
+  return JWT_SECRET;
+};
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -19,16 +27,24 @@ export const requireAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const authHeader =
+      req.headers.authorization;
+
+    if (
+      !authHeader ||
+      !authHeader.startsWith('Bearer ')
+    ) {
       res.status(401).json({
         success: false,
-        message: 'Authentication token missing or invalid format',
+        message:
+          'Authentication token missing or invalid format',
       });
       return;
     }
 
-    const token = authHeader.split(' ')[1];
+    const token =
+      authHeader.split(' ')[1];
+
     if (!token) {
       res.status(401).json({
         success: false,
@@ -38,29 +54,43 @@ export const requireAuth = async (
     }
 
     let decoded: any;
+
     try {
-      decoded = jwt.verify(token, JWT_SECRET);
+      decoded = jwt.verify(
+        token,
+        getJWTSecret()
+      );
     } catch (err) {
       res.status(401).json({
         success: false,
-        message: 'Invalid or expired token',
+        message:
+          'Invalid or expired token',
       });
       return;
     }
 
-    if (!decoded || !decoded.userId) {
+    if (
+      !decoded ||
+      !decoded.userId
+    ) {
       res.status(401).json({
         success: false,
-        message: 'Malformed token payload',
+        message:
+          'Malformed token payload',
       });
       return;
     }
 
-    const user = await StorageProvider.findUserById(decoded.userId);
+    const user =
+      await StorageProvider.findUserById(
+        decoded.userId
+      );
+
     if (!user) {
       res.status(401).json({
         success: false,
-        message: 'User belonging to this token no longer exists',
+        message:
+          'User belonging to this token no longer exists',
       });
       return;
     }
@@ -76,7 +106,8 @@ export const requireAuth = async (
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Internal authentication error',
+      message:
+        'Internal authentication error',
     });
   }
 };
